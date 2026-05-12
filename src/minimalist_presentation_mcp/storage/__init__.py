@@ -1,0 +1,1 @@
+"""Local deck persistence."""
