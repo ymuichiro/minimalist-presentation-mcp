@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import yaml
 
 from minimalist_presentation_mcp.deck.guideline import get_guideline_response
@@ -66,10 +67,11 @@ def test_guideline_mentions_dense_evidence_and_charts() -> None:
     guideline = str(response["guideline"])
 
     assert "proof slide" in guideline
-    assert "Inline SVG is allowed and preferred for charts" in guideline
+    assert "Inline SVG is preferred for charts" in guideline
     assert "Do not merely restate M1-M3 in E1-E2" in guideline
     assert "two-layer label strategy" in guideline
     assert "data-tooltip" in guideline
+    assert "line, pie/donut, stacked bar" in guideline
 
 
 def test_warnings_flag_sparse_evidence_without_quant_or_structure() -> None:
@@ -153,3 +155,29 @@ def test_create_deck_persists_html(tmp_path) -> None:
     assert response["url"].startswith("http://localhost:3000/decks/dck_")
     assert (tmp_path / "decks" / f"{response['deck_id']}.json").exists()
     assert (tmp_path / "decks" / f"{response['deck_id']}.html").exists()
+
+
+def test_create_deck_strips_script_tags_before_persisting(tmp_path) -> None:
+    payload = sample_deck()
+    payload["slides"]["E1"]["html"] = """
+    <section class="capsule">
+      <script>alert('x')</script>
+      <svg viewBox="0 0 40 20"><rect x="0" y="0" width="20" height="10"></rect></svg>
+    </section>
+    """.strip()
+
+    response = create_deck_response(
+        format="json",
+        content=payload,
+        store=DeckStore(data_dir=tmp_path),
+        base_url="http://localhost:3000",
+    )
+
+    html_path = tmp_path / "decks" / f"{response['deck_id']}.html"
+    json_path = tmp_path / "decks" / f"{response['deck_id']}.json"
+    saved_html = html_path.read_text(encoding="utf-8")
+    saved_payload = json.loads(json_path.read_text(encoding="utf-8"))
+
+    assert "E1.html contains script, which is discouraged" in response["warnings"]
+    assert "alert('x')" not in saved_html
+    assert "<script" not in saved_payload["source"]["slides"]["E1"]["html"]
