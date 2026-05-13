@@ -130,11 +130,54 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
       min-height: 0; height: 100%; overflow: hidden;
       background: var(--panel); border: 1px solid var(--line);
     }}
+    .capsule-frame :where([data-chart]) {{
+      min-width: 0; color: var(--ink);
+    }}
+    .capsule-frame :where([data-chart]) * {{ min-width: 0; }}
+    .capsule-frame :where([data-chart-series], [data-chart-bars], [data-chart-grid], [data-chart-legend]) {{
+      display: grid; gap: 12px;
+    }}
+    .capsule-frame :where([data-chart-series], [data-chart-bars], [data-chart-grid]) {{
+      grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); align-items: end;
+    }}
+    .capsule-frame :where([data-chart-item], [data-chart-card], [data-chart-point], [data-chart-bar], [data-chart-callout]) {{
+      min-width: 0;
+    }}
+    .capsule-frame :where([data-chart-card], [data-chart-item]) {{
+      display: grid; grid-template-rows: minmax(0, 1fr) auto auto; gap: 8px;
+    }}
+    .capsule-frame :where([data-chart-label]) {{
+      display: block; margin: 0; min-height: 2.8em;
+      color: #2f2f2f; font-size: 12px; line-height: 1.25; text-align: center;
+      overflow-wrap: anywhere; word-break: break-word;
+    }}
+    .capsule-frame :where([data-chart-value]) {{
+      display: block; margin: 0; color: var(--ink);
+      font-size: 12px; line-height: 1.2; font-weight: 700; text-align: center; white-space: nowrap;
+    }}
+    .capsule-frame :where([data-chart-meta]) {{
+      display: block; margin: 0; color: var(--muted);
+      font-size: 11px; line-height: 1.3; text-align: center; overflow-wrap: anywhere;
+    }}
+    .capsule-frame :where([data-tooltip], [data-chart-bar], [data-chart-point], [data-chart-segment]) {{ cursor: help; }}
+    .capsule-frame :where(svg) {{ max-width: 100%; height: auto; overflow: visible; }}
+    .capsule-frame :where(svg text) {{ font-family: inherit; fill: currentColor; }}
+    .capsule-frame :where(svg [data-chart-label]) {{
+      font-size: 11px; text-anchor: middle;
+    }}
     .fallback-text {{
       display: block; margin: 0; padding: 10px 14px;
       color: #2e2e2e; background: #f1efe9; border: 1px solid var(--line);
       font-size: 14px; line-height: 1.45;
     }}
+    .deck-tooltip {{
+      position: fixed; left: 0; top: 0; z-index: 20; display: none;
+      max-width: min(320px, 38vw); padding: 8px 10px;
+      border-radius: 8px; background: rgba(22, 22, 22, 0.94); color: #fff;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+      font-size: 13px; line-height: 1.4; white-space: pre-line; pointer-events: none;
+    }}
+    .deck-tooltip.visible {{ display: block; }}
     .speaker-note {{
       display: none; position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
       padding: 14px 18px; background: rgba(22, 22, 22, 0.9); color: #fff;
@@ -182,7 +225,62 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
       const slides = Array.from(document.querySelectorAll(".slide"));
       const indicator = document.querySelector("[data-page-indicator]");
       const notesButton = document.querySelector("[data-notes]");
+      const tooltip = document.createElement("div");
+      tooltip.className = "deck-tooltip";
+      tooltip.setAttribute("aria-hidden", "true");
+      document.body.appendChild(tooltip);
       let index = 0;
+
+      function readText(node) {{
+        return node ? node.textContent.replace(/\\s+/g, " ").trim() : "";
+      }}
+
+      function readTooltip(target) {{
+        const explicit = target.dataset.tooltip || target.getAttribute("title") || "";
+        if (explicit.trim()) return explicit.trim();
+        const titleNode = target.querySelector("title");
+        const titleText = readText(titleNode);
+        if (titleText) return titleText;
+        const label = target.dataset.label || target.getAttribute("aria-label") || readText(target.querySelector("[data-chart-label]"));
+        const value = target.dataset.value || readText(target.querySelector("[data-chart-value]"));
+        const detail = target.dataset.detail || readText(target.querySelector("[data-chart-meta]"));
+        if (label && value && detail) return `${{label}}: ${{value}}\n${{detail}}`;
+        if (label && value) return `${{label}}: ${{value}}`;
+        return value || label || "";
+      }}
+
+      function getTooltipTarget(origin) {{
+        if (!(origin instanceof Element)) return null;
+        const target = origin.closest("[data-tooltip], [data-chart-bar], [data-chart-point], [data-chart-segment], [data-value][data-label]");
+        if (!target || !target.closest(".capsule-frame")) return null;
+        return readTooltip(target) ? target : null;
+      }}
+
+      function placeTooltip(event) {{
+        if (!tooltip.classList.contains("visible")) return;
+        const offset = 16;
+        const bounds = tooltip.getBoundingClientRect();
+        let left = event.clientX + offset;
+        let top = event.clientY + offset;
+        if (left + bounds.width > window.innerWidth - 12) left = event.clientX - bounds.width - offset;
+        if (top + bounds.height > window.innerHeight - 12) top = event.clientY - bounds.height - offset;
+        tooltip.style.left = `${{Math.max(12, left)}}px`;
+        tooltip.style.top = `${{Math.max(12, top)}}px`;
+      }}
+
+      function showTooltip(target, event) {{
+        tooltip.textContent = readTooltip(target);
+        if (!tooltip.textContent) return;
+        tooltip.classList.add("visible");
+        tooltip.setAttribute("aria-hidden", "false");
+        placeTooltip(event);
+      }}
+
+      function hideTooltip() {{
+        tooltip.classList.remove("visible");
+        tooltip.setAttribute("aria-hidden", "true");
+      }}
+
       function show(nextIndex) {{
         index = Math.max(0, Math.min(slides.length - 1, nextIndex));
         slides.forEach((slide, slideIndex) => slide.classList.toggle("active", slideIndex === index));
@@ -194,6 +292,21 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
         const visible = document.body.classList.toggle("notes-visible");
         notesButton.setAttribute("aria-pressed", visible ? "true" : "false");
       }});
+      document.addEventListener("pointerover", (event) => {{
+        const target = getTooltipTarget(event.target);
+        if (!target) return;
+        showTooltip(target, event);
+      }});
+      document.addEventListener("pointermove", (event) => {{
+        const target = getTooltipTarget(event.target);
+        if (!target) {{
+          hideTooltip();
+          return;
+        }}
+        showTooltip(target, event);
+      }});
+      document.addEventListener("pointerdown", hideTooltip);
+      document.addEventListener("scroll", hideTooltip, true);
       document.querySelector("[data-print]").addEventListener("click", () => window.print());
       window.addEventListener("keydown", (event) => {{
         if (event.key === "ArrowLeft") show(index - 1);

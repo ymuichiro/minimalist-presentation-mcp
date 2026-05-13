@@ -68,6 +68,8 @@ def test_guideline_mentions_dense_evidence_and_charts() -> None:
     assert "proof slide" in guideline
     assert "Inline SVG is allowed and preferred for charts" in guideline
     assert "Do not merely restate M1-M3 in E1-E2" in guideline
+    assert "two-layer label strategy" in guideline
+    assert "data-tooltip" in guideline
 
 
 def test_warnings_flag_sparse_evidence_without_quant_or_structure() -> None:
@@ -122,6 +124,19 @@ def test_render_exposes_evidence_takeaway_and_top_wrapper() -> None:
     assert 'class="evidence-top"' in html
     assert "grid-template-rows: auto minmax(0, 1fr) auto;" in html
     assert "display: block; margin: 0; padding: 10px 14px;" in html
+    assert ".deck-tooltip" in html
+    assert "[data-chart-label]" in html
+    assert 'document.addEventListener("pointerover"' in html
+
+
+def test_render_keeps_chart_tooltip_metadata_in_capsules() -> None:
+    deck = parse_deck_input("json", sample_deck())
+
+    html = render_deck_html("dck_test", deck)
+
+    assert 'data-chart-bar data-label="導入前の一次回答時間"' in html
+    assert "<title>導入前の一次回答時間: 19分" in html
+    assert 'data-chart-series' in html
 
 
 

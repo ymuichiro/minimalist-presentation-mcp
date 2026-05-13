@@ -31,6 +31,11 @@ Rules:
   3) two to four supporting facts, comparisons, or drivers,
   4) one short takeaway strip that tells the audience how to read the evidence.
 - If credible numeric data exists, use charts or quantified comparisons inside the capsule. Inline SVG is allowed and preferred for charts.
+- When building charts, keep visible labels short and stable. Do not place an unknown-length sentence directly under a narrow bar, point, or callout.
+- For chart categories, use a two-layer label strategy: a compact visible label plus the full label/value/detail in tooltip text or an adjacent legend.
+- Prefer the shared evidence attributes `data-chart`, `data-chart-series`, `data-chart-item`, `data-chart-label`, `data-chart-value`, `data-chart-meta`, and `data-tooltip` so the built-in slide CSS can keep labels readable.
+- Add hover-readable values to chart marks whenever possible. For SVG charts, include `<title>` in each bar, point, or segment and/or set `data-tooltip` with the exact value and context.
+- Make charts decision-ready, not decorative: include units, exact values or deltas, and at least one benchmark, note, ranking, or explanatory cue when the data supports it.
 - If credible numeric data does not exist, explicitly say so in the evidence and use a structure visual such as a matrix, timeline, driver tree, risk map, workflow, or comparison table instead of leaving whitespace.
 - Do not merely restate M1-M3 in E1-E2; add proof, mechanism, comparison, or execution detail.
 - Do not leave large intentional blank areas or center a short headline above an underfilled capsule.
@@ -45,7 +50,7 @@ schema_version is fixed to message-first-deck/v1.
 slides must contain M1, M2, M3, E1, and E2.
 M1-M3: type=message, watch, statement, sub_message, speaker_note.
 E1-E2: type=html_capsule, watch, claim, html, fallback_text, speaker_note.
-Evidence capsules should usually contain a chart, table, comparison grid, timeline, driver tree, risk map, or similar proof structure. fallback_text should work as a short takeaway strip.
+Evidence capsules should usually contain a chart, table, comparison grid, timeline, driver tree, risk map, or similar proof structure. When charts are used, visible labels should stay compact and full numeric context should be exposed by tooltip text or a companion legend. fallback_text should work as a short takeaway strip.
 Recommended lengths: message watch <=30 chars, statement <=80, sub_message <=140; evidence watch <=40, claim <=120, fallback_text <=200; speaker_note <=500.
 """
 

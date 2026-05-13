@@ -44,6 +44,8 @@ def test_deck_route_returns_persisted_html(tmp_path) -> None:
         assert deck.text.count('class="slide ') == 5
         assert 'class="evidence-top"' in deck.text
         assert "読み取り：" in deck.text
+        assert 'tooltip.className = "deck-tooltip"' in deck.text
+        assert 'data-chart-bar' in deck.text
 
 
 def test_mcp_transport_allows_configured_public_host(tmp_path) -> None:
