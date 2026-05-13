@@ -116,10 +116,10 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
     }}
     .evidence-slide {{
       padding: 4.2% 4.8% 3.8%; display: none;
-      grid-template-rows: auto minmax(0, 1fr) auto; gap: 14px; align-content: start;
+      flex-direction: column; gap: 14px; justify-content: flex-start; align-items: stretch;
     }}
-    .evidence-slide.active {{ display: grid; }}
-    .evidence-top {{ display: grid; gap: 10px; align-content: start; }}
+    .evidence-slide.active {{ display: flex; }}
+    .evidence-top {{ display: grid; gap: 10px; align-content: start; flex: 0 0 auto; }}
     .evidence-header {{
       display: grid; grid-template-columns: minmax(220px, 0.9fr) minmax(0, 2.1fr); gap: 28px; align-items: start;
       border-bottom: 1px solid var(--line); padding-bottom: 14px;
@@ -127,7 +127,7 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
     .evidence-header .watch {{ margin: 0; font-size: clamp(15px, 1.35vw, 20px); }}
     .evidence-header h1 {{ font-size: clamp(25px, 2.8vw, 42px); line-height: 1.2; }}
     .capsule-frame {{
-      min-height: 0; height: 100%; overflow: hidden;
+      min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden;
       background: var(--panel); border: 1px solid var(--line);
     }}
     .capsule-frame :where([data-chart]) {{
@@ -195,7 +195,7 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
         display: block; width: 16in; height: 9in; border: 0; box-shadow: none;
         page-break-after: always; break-after: page;
       }}
-      .evidence-slide, .evidence-slide.active {{ display: grid; }}
+      .evidence-slide, .evidence-slide.active {{ display: flex; }}
       .speaker-note, body.notes-visible .speaker-note {{ display: none; }}
     }}
   </style>

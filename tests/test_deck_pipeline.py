@@ -124,7 +124,8 @@ def test_render_exposes_evidence_takeaway_and_top_wrapper() -> None:
     html = render_deck_html("dck_test", deck)
 
     assert 'class="evidence-top"' in html
-    assert "grid-template-rows: auto minmax(0, 1fr) auto;" in html
+    assert "flex-direction: column; gap: 14px; justify-content: flex-start; align-items: stretch;" in html
+    assert "flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start;" in html
     assert "display: block; margin: 0; padding: 10px 14px;" in html
     assert ".deck-tooltip" in html
     assert "[data-chart-label]" in html
