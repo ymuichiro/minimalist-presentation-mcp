@@ -94,6 +94,36 @@ or:
 
 Generated decks are persisted under `data/decks/`.
 
+## Authentication
+
+Set these values before exposing the app as an authenticated ChatGPT MCP server:
+
+```dotenv
+AUTH_ENABLED=true
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=replace-with-a-long-random-password
+PUBLIC_BASE_URL=https://zen-presentation.notelligent.app
+ALLOWED_HOSTS=127.0.0.1,localhost,app.internal,zen-presentation.notelligent.app
+ALLOWED_REDIRECT_ORIGINS=https://chat.openai.com,https://chatgpt.com
+```
+
+The app exposes OAuth-compatible endpoints for ChatGPT remote MCP connections:
+
+- `/.well-known/oauth-protected-resource`
+- `/.well-known/oauth-protected-resource/mcp`
+- `/.well-known/oauth-authorization-server`
+- `/register`
+- `/authorize`
+- `/token`
+- `/revoke`
+- `/mcp`
+
+The login provider is local username/password. Browser pages under `/dashboard`,
+`/mypage`, and `/decks/{deck_id}` require a valid app session when auth is
+enabled. Decks created through authenticated MCP calls are owned by the logged-in
+user and are not visible to other users. Dynamic OAuth client registration only
+accepts redirect URI origins listed in `ALLOWED_REDIRECT_ORIGINS`.
+
 ## Evidence slide contract
 
 - `M1`-`M3` are intentionally terse message slides.

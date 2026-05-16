@@ -43,6 +43,12 @@ The application must support:
 - `GET /healthz`
 - `POST /mcp`
 
+## Additional UI Requirements
+
+- `/dashboard` lists only the authenticated user's own decks.
+- `/mypage` lets the authenticated user switch display language between Japanese and English.
+- `/mypage` lets the authenticated user switch the application theme between light mode and dark mode.
+
 ## Implementation Direction
 
 - Keep the current Streamable HTTP MCP transport.
