@@ -70,7 +70,11 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
     }}
     * {{ box-sizing: border-box; }}
     body {{ margin: 0; background: #ece9e3; color: var(--ink); }}
-    .app-shell {{ min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }}
+    .app-shell {{
+      min-height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr);
+      --notes-height: 180px;
+    }}
+    body.notes-visible .app-shell {{ grid-template-rows: auto minmax(0, 1fr) var(--notes-height); }}
     .toolbar {{
       display: flex; align-items: center; gap: 12px; padding: 10px 16px;
       background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid var(--line);
@@ -91,9 +95,7 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
     button[aria-pressed="true"] {{ border-color: var(--accent); color: var(--accent); }}
     .stage {{ display: grid; place-items: center; padding: 20px; }}
     .deck {{ width: min(1280px, calc(100vw - 40px)); aspect-ratio: 16 / 9; position: relative; }}
-    .app-shell:fullscreen {{
-      background: #111; grid-template-rows: auto 1fr;
-    }}
+    .app-shell:fullscreen {{ background: #111; }}
     .app-shell:fullscreen .toolbar {{
       position: fixed; left: 0; right: 0; top: 0; z-index: 30;
       background: rgba(17, 17, 17, 0.72); color: #fff; border-bottom-color: rgba(255, 255, 255, 0.18);
@@ -104,10 +106,14 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
       background: rgba(255, 255, 255, 0.12); color: #fff; border-color: rgba(255, 255, 255, 0.28);
     }}
     .app-shell:fullscreen button[aria-pressed="true"] {{ border-color: #ff5b50; color: #ffb3ad; }}
-    .app-shell:fullscreen .stage {{ min-height: 100vh; padding: 58px 0 0; background: #111; }}
+    .app-shell:fullscreen .stage {{ min-height: 0; padding: 58px 0 0; background: #111; }}
     .app-shell:fullscreen .deck {{
       width: min(100vw, calc((100vh - 58px) * 16 / 9));
       height: min(calc(100vh - 58px), calc(100vw * 9 / 16));
+    }}
+    body.notes-visible .app-shell:fullscreen .deck {{
+      width: min(100vw, calc((100vh - 58px - var(--notes-height)) * 16 / 9));
+      height: min(calc(100vh - 58px - var(--notes-height)), calc(100vw * 9 / 16));
     }}
     .slide {{
       display: none; width: 100%; height: 100%; aspect-ratio: 16 / 9; overflow: hidden;
@@ -205,11 +211,35 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
     }}
     body.pointer-enabled .laser-pointer.visible {{ display: block; }}
     .speaker-note {{
-      display: none; position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
-      padding: 14px 18px; background: rgba(22, 22, 22, 0.9); color: #fff;
-      font-size: 16px; line-height: 1.45; max-height: 28%; overflow: auto;
+      display: none;
     }}
-    body.notes-visible .speaker-note {{ display: block; }}
+    .notes-panel {{
+      display: none; min-height: 96px; max-height: min(50vh, 420px);
+      background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }}
+    body.notes-visible .notes-panel {{ display: grid; grid-template-rows: 10px minmax(0, 1fr); }}
+    .notes-resizer {{
+      cursor: ns-resize; background: linear-gradient(to bottom, #e7e2d9, #f8f6f0);
+      border-bottom: 1px solid var(--line);
+    }}
+    .notes-resizer::before {{
+      content: ""; display: block; width: 54px; height: 3px; margin: 3px auto 0;
+      border-radius: 999px; background: #b8b1a6;
+    }}
+    .notes-content {{
+      padding: 16px 22px; overflow: auto; color: var(--ink);
+      font-size: 16px; line-height: 1.55; white-space: pre-wrap;
+    }}
+    .notes-empty {{ color: var(--muted); }}
+    .app-shell:fullscreen .notes-panel {{
+      background: #171717; color: #f4f4f4; border-top-color: rgba(255, 255, 255, 0.18);
+    }}
+    .app-shell:fullscreen .notes-resizer {{
+      background: linear-gradient(to bottom, #252525, #1a1a1a); border-bottom-color: rgba(255, 255, 255, 0.16);
+    }}
+    .app-shell:fullscreen .notes-resizer::before {{ background: rgba(255, 255, 255, 0.42); }}
+    .app-shell:fullscreen .notes-content {{ color: #f4f4f4; }}
     .page-indicator {{ color: var(--muted); font-size: 13px; min-width: 52px; text-align: center; }}
     @page {{ size: 16in 9in; margin: 0; }}
     @media print {{
@@ -222,7 +252,7 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
         page-break-after: always; break-after: page;
       }}
       .evidence-slide, .evidence-slide.active {{ display: flex; }}
-      .speaker-note, body.notes-visible .speaker-note {{ display: none; }}
+      .speaker-note, .notes-panel, body.notes-visible .notes-panel {{ display: none; }}
     }}
   </style>
 </head>
@@ -247,6 +277,10 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
     <main class="stage">
       <article class="deck" aria-label="Message-First Deck">{slides}</article>
     </main>
+    <aside class="notes-panel" aria-label="Speaker notes">
+      <div class="notes-resizer" data-notes-resizer aria-hidden="true"></div>
+      <div class="notes-content" data-notes-content></div>
+    </aside>
   </div>
   <script>
     (() => {{
@@ -255,6 +289,9 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
       const deck = document.querySelector(".deck");
       const indicator = document.querySelector("[data-page-indicator]");
       const notesButton = document.querySelector("[data-notes]");
+      const notesPanel = document.querySelector(".notes-panel");
+      const notesContent = document.querySelector("[data-notes-content]");
+      const notesResizer = document.querySelector("[data-notes-resizer]");
       const pointerButton = document.querySelector("[data-pointer]");
       const fullscreenButton = document.querySelector("[data-fullscreen]");
       const tooltip = document.createElement("div");
@@ -352,16 +389,48 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
         laserPointer.classList.remove("visible");
       }}
 
+      function updateNotes() {{
+        const activeNote = slides[index].querySelector(".speaker-note");
+        const text = activeNote ? activeNote.textContent.trim() : "";
+        notesContent.textContent = text || "No speaker notes for this slide.";
+        notesContent.classList.toggle("notes-empty", !text);
+      }}
+
+      function clampNotesHeight(height) {{
+        const maxHeight = Math.min(420, window.innerHeight * 0.5);
+        return Math.max(96, Math.min(maxHeight, height));
+      }}
+
       function show(nextIndex) {{
         index = Math.max(0, Math.min(slides.length - 1, nextIndex));
         slides.forEach((slide, slideIndex) => slide.classList.toggle("active", slideIndex === index));
         indicator.textContent = `${{index + 1}} / ${{slides.length}}`;
+        updateNotes();
       }}
       document.querySelector("[data-prev]").addEventListener("click", () => show(index - 1));
       document.querySelector("[data-next]").addEventListener("click", () => show(index + 1));
       notesButton.addEventListener("click", () => {{
         const visible = document.body.classList.toggle("notes-visible");
         notesButton.setAttribute("aria-pressed", visible ? "true" : "false");
+      }});
+      notesResizer.addEventListener("pointerdown", (event) => {{
+        event.preventDefault();
+        notesResizer.setPointerCapture(event.pointerId);
+        const startY = event.clientY;
+        const startHeight = notesPanel.getBoundingClientRect().height;
+        function drag(moveEvent) {{
+          const nextHeight = clampNotesHeight(startHeight + startY - moveEvent.clientY);
+          shell.style.setProperty("--notes-height", `${{nextHeight}}px`);
+        }}
+        function stop(upEvent) {{
+          notesResizer.releasePointerCapture(upEvent.pointerId);
+          window.removeEventListener("pointermove", drag);
+          window.removeEventListener("pointerup", stop);
+          window.removeEventListener("pointercancel", stop);
+        }}
+        window.addEventListener("pointermove", drag);
+        window.addEventListener("pointerup", stop);
+        window.addEventListener("pointercancel", stop);
       }});
       pointerButton.addEventListener("click", () => {{
         const active = document.body.classList.toggle("pointer-enabled");

@@ -120,6 +120,9 @@ def test_render_escapes_message_text_and_inserts_capsule() -> None:
     assert "exitFullscreen" in html
     assert 'data-fullscreen' in html
     assert 'data-pointer' in html
+    assert 'class="notes-panel"' in html
+    assert 'data-notes-resizer' in html
+    assert "updateNotes()" in html
 
 
 def test_render_exposes_evidence_takeaway_and_top_wrapper() -> None:
@@ -133,6 +136,8 @@ def test_render_exposes_evidence_takeaway_and_top_wrapper() -> None:
     assert "display: block; margin: 0; padding: 10px 14px;" in html
     assert ".deck-tooltip" in html
     assert ".laser-pointer" in html
+    assert ".notes-panel" in html
+    assert ".notes-resizer" in html
     assert "[data-chart-label]" in html
     assert 'document.addEventListener("pointerover"' in html
     assert 'document.addEventListener("fullscreenchange"' in html
