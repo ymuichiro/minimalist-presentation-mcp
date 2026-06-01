@@ -1,10 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import shutil
-import subprocess
-import tempfile
-from pathlib import Path
 
 import httpx
 
@@ -32,7 +28,7 @@ class AzureSpeechTranscriber:
         if not (self.settings.azure_speech_region or self.settings.azure_speech_endpoint):
             raise SpeechTranscriptionError("SPEECH_NOT_CONFIGURED", "AZURE_SPEECH_REGION or AZURE_SPEECH_ENDPOINT is required.")
 
-        wav = await asyncio.to_thread(_to_wav_16k_mono, audio, content_type)
+        wav = _require_wav_audio(audio, content_type)
         endpoint = _speech_endpoint(self.settings)
         url = f"{endpoint}/speech/recognition/conversation/cognitiveservices/v1"
         params = {"language": language or "ja-JP"}
@@ -88,53 +84,9 @@ def _entra_authorization_token(resource_id: str | None) -> str:
     return f"aad#{resource_id}#{access_token}"
 
 
-def _to_wav_16k_mono(audio: bytes, content_type: str) -> bytes:
-    if "wav" in content_type.lower():
-        return audio
-    ffmpeg = shutil.which("ffmpeg")
-    if not ffmpeg:
-        raise SpeechTranscriptionError("FFMPEG_REQUIRED", "ffmpeg is required to convert browser audio before transcription.")
-
-    suffix = _suffix_for_content_type(content_type)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        source = Path(tmpdir) / f"input{suffix}"
-        target = Path(tmpdir) / "output.wav"
-        source.write_bytes(audio)
-        completed = subprocess.run(
-            [
-                ffmpeg,
-                "-y",
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-i",
-                str(source),
-                "-ac",
-                "1",
-                "-ar",
-                "16000",
-                "-f",
-                "wav",
-                str(target),
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        if completed.returncode != 0:
-            details = completed.stderr.strip() or "Audio conversion failed."
-            raise SpeechTranscriptionError("AUDIO_CONVERSION_FAILED", details)
-        return target.read_bytes()
-
-
-def _suffix_for_content_type(content_type: str) -> str:
-    lower = content_type.lower()
-    if "webm" in lower:
-        return ".webm"
-    if "ogg" in lower:
-        return ".ogg"
-    if "mp4" in lower or "m4a" in lower:
-        return ".m4a"
-    if "mpeg" in lower or "mp3" in lower:
-        return ".mp3"
-    return ".audio"
+def _require_wav_audio(audio: bytes, content_type: str) -> bytes:
+    if "wav" not in content_type.lower():
+        raise SpeechTranscriptionError("UNSUPPORTED_AUDIO_FORMAT", "Audio must be uploaded as 16 kHz mono WAV.")
+    if not audio.startswith(b"RIFF") or b"WAVE" not in audio[:16]:
+        raise SpeechTranscriptionError("INVALID_WAV_AUDIO", "Uploaded audio is not a valid WAV file.")
+    return audio

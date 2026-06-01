@@ -5,8 +5,7 @@ const state = {
   step: "freeTalk",
   locale: localStorage.getItem("communicationCompilerLocale") || "ja",
   chatMessages: [],
-  recorder: null,
-  recordedChunks: [],
+  voiceRecorder: null,
   recordingStream: null,
 };
 
@@ -254,7 +253,7 @@ function applyI18n() {
   document.querySelectorAll("[data-locale]").forEach((button) => {
     button.classList.toggle("active", button.dataset.locale === state.locale);
   });
-  if (!state.recorder || state.recorder.state === "inactive") setVoiceButtonState("idle");
+  if (!state.voiceRecorder || state.voiceRecorder.state === "inactive") setVoiceButtonState("idle");
   updateSessionBadge();
 }
 
@@ -764,33 +763,41 @@ function fillDemo() {
   toast(t("toast.sampleInserted"));
 }
 
-function preferredRecordingMimeType() {
-  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
-  return candidates.find((type) => window.MediaRecorder?.isTypeSupported(type)) || "";
-}
-
 async function toggleVoiceInput() {
-  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!navigator.mediaDevices?.getUserMedia || !AudioContextClass) {
     toast(t("toast.voiceUnsupported"));
     return;
   }
-  if (state.recorder && state.recorder.state === "recording") {
-    state.recorder.stop();
+  if (state.voiceRecorder?.state === "recording") {
+    await stopVoiceRecording();
     return;
   }
 
   try {
-    state.recordedChunks = [];
     state.recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mimeType = preferredRecordingMimeType();
-    state.recorder = new MediaRecorder(state.recordingStream, mimeType ? { mimeType } : undefined);
-    state.recorder.addEventListener("dataavailable", (event) => {
-      if (event.data.size > 0) state.recordedChunks.push(event.data);
-    });
-    state.recorder.addEventListener("stop", () => {
-      void uploadRecordedAudio();
-    });
-    state.recorder.start();
+    const audioContext = new AudioContextClass();
+    const source = audioContext.createMediaStreamSource(state.recordingStream);
+    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    const silentGain = audioContext.createGain();
+    const buffers = [];
+    silentGain.gain.value = 0;
+    processor.onaudioprocess = (event) => {
+      const channel = event.inputBuffer.getChannelData(0);
+      buffers.push(new Float32Array(channel));
+    };
+    source.connect(processor);
+    processor.connect(silentGain);
+    silentGain.connect(audioContext.destination);
+    state.voiceRecorder = {
+      state: "recording",
+      audioContext,
+      source,
+      processor,
+      silentGain,
+      buffers,
+      sampleRate: audioContext.sampleRate,
+    };
     setVoiceButtonState("recording");
     toast(t("toast.recordingStarted"));
   } catch (error) {
@@ -800,29 +807,38 @@ async function toggleVoiceInput() {
   }
 }
 
-async function uploadRecordedAudio() {
+async function stopVoiceRecording() {
+  const recorder = state.voiceRecorder;
+  if (!recorder || recorder.state !== "recording") return;
+  recorder.state = "inactive";
   setVoiceButtonState("transcribing");
   try {
+    recorder.processor.disconnect();
+    recorder.source.disconnect();
+    recorder.silentGain.disconnect();
     stopRecordingStream();
-    const mimeType = state.recorder?.mimeType || "audio/webm";
-    const blob = new Blob(state.recordedChunks, { type: mimeType });
-    const form = new FormData();
-    form.append("audio", blob, filenameForMimeType(mimeType));
-    form.append("language", state.locale === "ja" ? "ja-JP" : "en-US");
-    const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data.error?.message || `${t("error.requestFailed")}: ${response.status}`);
-    }
-    appendFreeTalkText(data.text || "");
-    toast(t("toast.transcriptionAdded"));
+    await recorder.audioContext.close();
+    const wav = encodeWav16kMono(recorder.buffers, recorder.sampleRate);
+    await uploadRecordedAudio(wav);
   } catch (error) {
     toast(error.message);
   } finally {
-    state.recorder = null;
-    state.recordedChunks = [];
+    state.voiceRecorder = null;
     setVoiceButtonState("idle");
   }
+}
+
+async function uploadRecordedAudio(wavBlob) {
+  const form = new FormData();
+  form.append("audio", wavBlob, "speech.wav");
+  form.append("language", state.locale === "ja" ? "ja-JP" : "en-US");
+  const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error?.message || `${t("error.requestFailed")}: ${response.status}`);
+  }
+  appendFreeTalkText(data.text || "");
+  toast(t("toast.transcriptionAdded"));
 }
 
 function stopRecordingStream() {
@@ -838,11 +854,77 @@ function appendFreeTalkText(text) {
   node.focus();
 }
 
-function filenameForMimeType(mimeType) {
-  if (mimeType.includes("mp4")) return "speech.m4a";
-  if (mimeType.includes("ogg")) return "speech.ogg";
-  if (mimeType.includes("wav")) return "speech.wav";
-  return "speech.webm";
+function encodeWav16kMono(buffers, inputSampleRate) {
+  const merged = mergeFloat32Buffers(buffers);
+  const samples = downsampleBuffer(merged, inputSampleRate, 16000);
+  const bytesPerSample = 2;
+  const blockAlign = bytesPerSample;
+  const byteRate = 16000 * blockAlign;
+  const dataSize = samples.length * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  writeAscii(view, 0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeAscii(view, 8, "WAVE");
+  writeAscii(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, 16000, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeAscii(view, 36, "data");
+  view.setUint32(40, dataSize, true);
+  floatTo16BitPcm(view, 44, samples);
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+function mergeFloat32Buffers(buffers) {
+  const length = buffers.reduce((total, buffer) => total + buffer.length, 0);
+  const result = new Float32Array(length);
+  let offset = 0;
+  buffers.forEach((buffer) => {
+    result.set(buffer, offset);
+    offset += buffer.length;
+  });
+  return result;
+}
+
+function downsampleBuffer(buffer, inputSampleRate, outputSampleRate) {
+  if (outputSampleRate === inputSampleRate) return buffer;
+  if (outputSampleRate > inputSampleRate) {
+    throw new Error("Output sample rate must be lower than input sample rate.");
+  }
+  const ratio = inputSampleRate / outputSampleRate;
+  const length = Math.round(buffer.length / ratio);
+  const result = new Float32Array(length);
+  let inputOffset = 0;
+  for (let i = 0; i < length; i += 1) {
+    const nextOffset = Math.round((i + 1) * ratio);
+    let sum = 0;
+    let count = 0;
+    for (let j = inputOffset; j < nextOffset && j < buffer.length; j += 1) {
+      sum += buffer[j];
+      count += 1;
+    }
+    result[i] = count ? sum / count : 0;
+    inputOffset = nextOffset;
+  }
+  return result;
+}
+
+function floatTo16BitPcm(view, offset, input) {
+  for (let i = 0; i < input.length; i += 1, offset += 2) {
+    const sample = Math.max(-1, Math.min(1, input[i]));
+    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+  }
+}
+
+function writeAscii(view, offset, value) {
+  for (let i = 0; i < value.length; i += 1) {
+    view.setUint8(offset + i, value.charCodeAt(i));
+  }
 }
 
 function escapeHtml(value) {
