@@ -69,32 +69,42 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }}
     * {{ box-sizing: border-box; }}
+    html, body {{ width: 100%; overflow-x: hidden; }}
     body {{ margin: 0; background: #ece9e3; color: var(--ink); }}
     .app-shell {{
-      min-height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr);
-      --notes-height: 180px;
+      height: 100dvh; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr);
+      width: 100%; max-width: 100vw; overflow-x: hidden; --notes-height: 180px;
     }}
     body.notes-visible .app-shell {{ grid-template-rows: auto minmax(0, 1fr) var(--notes-height); }}
     .toolbar {{
       display: flex; align-items: center; gap: 12px; padding: 10px 16px;
       background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid var(--line);
-      position: sticky; top: 0; z-index: 5;
+      position: sticky; top: 0; z-index: 5; width: 100%; max-width: 100vw;
     }}
     .deck-title {{
       min-width: 0; flex: 1; display: flex; align-items: baseline; gap: 10px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }}
-    .deck-title strong, .deck-title span {{ overflow: hidden; text-overflow: ellipsis; }}
+    .deck-title strong, .deck-title span {{ min-width: 0; overflow: hidden; text-overflow: ellipsis; }}
     .deck-title span {{ color: var(--muted); font-size: 13px; }}
-    .nav-buttons {{ display: flex; gap: 6px; align-items: center; }}
+    .nav-buttons {{ display: flex; gap: 6px; align-items: center; flex-shrink: 0; }}
     button {{
       border: 1px solid var(--line); background: var(--panel); color: var(--ink);
       height: 34px; min-width: 34px; border-radius: 6px; padding: 0 11px;
       cursor: pointer; font: inherit; font-size: 13px;
     }}
     button[aria-pressed="true"] {{ border-color: var(--accent); color: var(--accent); }}
-    .stage {{ display: grid; place-items: center; padding: 20px; }}
-    .deck {{ width: min(1280px, calc(100vw - 40px)); aspect-ratio: 16 / 9; position: relative; }}
+    .stage {{
+      min-height: 0; display: grid; place-items: center; padding: 16px;
+      overflow: auto;
+    }}
+    .deck {{
+      width: min(1280px, calc(100vw - 32px), calc((100dvh - 86px) * 16 / 9));
+      aspect-ratio: 16 / 9; position: relative;
+    }}
+    body.notes-visible .deck {{
+      width: min(1280px, calc(100vw - 32px), calc((100dvh - 86px - var(--notes-height)) * 16 / 9));
+    }}
     .app-shell:fullscreen {{ background: #111; }}
     .app-shell:fullscreen .toolbar {{
       position: fixed; left: 0; right: 0; top: 0; z-index: 30;
@@ -116,7 +126,7 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
       height: min(calc(100vh - 58px - var(--notes-height)), calc(100vw * 9 / 16));
     }}
     .slide {{
-      display: none; width: 100%; height: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+      display: none; width: 100%; height: 100%; aspect-ratio: 16 / 9; overflow: auto;
       background: var(--paper); border: 1px solid #d6d0c7;
       box-shadow: 0 18px 42px rgba(0, 0, 0, 0.14); position: relative;
     }}
@@ -151,7 +161,7 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
     .evidence-header .watch {{ margin: 0; font-size: clamp(15px, 1.35vw, 20px); }}
     .evidence-header h1 {{ font-size: clamp(25px, 2.8vw, 42px); line-height: 1.2; }}
     .capsule-frame {{
-      min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden;
+      min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start; overflow: auto;
       background: var(--panel); border: 1px solid var(--line);
     }}
     .capsule-frame :where([data-chart]) {{

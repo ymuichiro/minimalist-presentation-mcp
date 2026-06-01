@@ -7,6 +7,7 @@ from typing import Any
 
 import ulid
 
+from minimalist_presentation_mcp.deck.render_html import render_deck_html
 from minimalist_presentation_mcp.deck.schema import DeckIR
 
 
@@ -39,6 +40,16 @@ class DeckStore:
         html_path.write_text(html, encoding="utf-8")
 
     def get_html(self, deck_id: str) -> str | None:
+        json_path = self.decks_dir / f"{deck_id}.json"
+        if json_path.exists():
+            try:
+                payload = json.loads(json_path.read_text(encoding="utf-8"))
+                deck = DeckIR.model_validate(payload["source"])
+                html = render_deck_html(deck_id, deck)
+                (self.decks_dir / f"{deck_id}.html").write_text(html, encoding="utf-8")
+                return html
+            except Exception:
+                pass
         path = self.decks_dir / f"{deck_id}.html"
         if not path.exists():
             return None

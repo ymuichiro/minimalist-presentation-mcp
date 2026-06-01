@@ -1,0 +1,151 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.43.8.12551",
+      "templateHash": "2870434880185525352"
+    }
+  },
+  "parameters": {
+    "aiFoundryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Globally unique Microsoft Foundry resource name. Lowercase letters, numbers, and hyphens are safest."
+      }
+    },
+    "aiProjectName": {
+      "type": "string",
+      "metadata": {
+        "description": "Project name under the Foundry resource."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for the Foundry resource."
+      }
+    },
+    "disableLocalAuth": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Disable key-based local auth so the app uses Entra ID / az login via DefaultAzureCredential."
+      }
+    },
+    "modelDeploymentName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional low-cost model deployment name. Leave empty to deploy no model."
+      }
+    },
+    "modelName": {
+      "type": "string",
+      "defaultValue": "gpt-5.4-nano",
+      "metadata": {
+        "description": "Optional model name, for example gpt-5.4-nano or gpt-5.4-mini."
+      }
+    },
+    "modelVersion": {
+      "type": "string",
+      "defaultValue": "2026-03-17",
+      "metadata": {
+        "description": "Optional model version."
+      }
+    },
+    "modelSkuName": {
+      "type": "string",
+      "defaultValue": "GlobalStandard",
+      "metadata": {
+        "description": "Use token-based standard deployment. Keep capacity at 1 for the smallest rate limit."
+      }
+    },
+    "modelSkuCapacity": {
+      "type": "int",
+      "defaultValue": 1,
+      "minValue": 1,
+      "maxValue": 1,
+      "metadata": {
+        "description": "Smallest deployment capacity to reduce token-per-minute exposure."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.CognitiveServices/accounts",
+      "apiVersion": "2025-06-01",
+      "name": "[parameters('aiFoundryName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "sku": {
+        "name": "S0"
+      },
+      "kind": "AIServices",
+      "properties": {
+        "allowProjectManagement": true,
+        "customSubDomainName": "[parameters('aiFoundryName')]",
+        "disableLocalAuth": "[parameters('disableLocalAuth')]"
+      }
+    },
+    {
+      "type": "Microsoft.CognitiveServices/accounts/projects",
+      "apiVersion": "2025-06-01",
+      "name": "[format('{0}/{1}', parameters('aiFoundryName'), parameters('aiProjectName'))]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {},
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts', parameters('aiFoundryName'))]"
+      ]
+    },
+    {
+      "condition": "[not(empty(parameters('modelDeploymentName')))]",
+      "type": "Microsoft.CognitiveServices/accounts/deployments",
+      "apiVersion": "2025-06-01",
+      "name": "[format('{0}/{1}', parameters('aiFoundryName'), parameters('modelDeploymentName'))]",
+      "sku": {
+        "name": "[parameters('modelSkuName')]",
+        "capacity": "[parameters('modelSkuCapacity')]"
+      },
+      "properties": {
+        "model": {
+          "name": "[parameters('modelName')]",
+          "format": "OpenAI",
+          "version": "[parameters('modelVersion')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts', parameters('aiFoundryName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "aiFoundryName": {
+      "type": "string",
+      "value": "[parameters('aiFoundryName')]"
+    },
+    "aiProjectName": {
+      "type": "string",
+      "value": "[parameters('aiProjectName')]"
+    },
+    "modelDeploymentName": {
+      "type": "string",
+      "value": "[if(empty(parameters('modelDeploymentName')), '', parameters('modelDeploymentName'))]"
+    },
+    "projectEndpoint": {
+      "type": "string",
+      "value": "[format('https://{0}.services.ai.azure.com/api/projects/{1}', parameters('aiFoundryName'), parameters('aiProjectName'))]"
+    },
+    "alternateProjectEndpoint": {
+      "type": "string",
+      "value": "[format('https://{0}.ai.azure.com/api/projects/{1}', parameters('aiFoundryName'), parameters('aiProjectName'))]"
+    }
+  }
+}

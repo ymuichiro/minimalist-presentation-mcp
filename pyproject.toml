@@ -3,16 +3,23 @@ name = "minimalist-presentation-mcp"
 version = "0.1.0"
 description = "HTTP Streamable MCP server for fixed-format Message-First Deck presentations"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.136.1",
     "httpx>=0.28.1",
     "mcp[cli]>=1.27.0",
     "pydantic>=2.13.3",
     "pytest>=9.0.3",
+    "python-multipart>=0.0.20",
     "pyyaml>=6.0.3",
     "ulid-py>=1.1.0",
     "uvicorn>=0.46.0",
+]
+
+[project.optional-dependencies]
+foundry = [
+    "azure-ai-projects",
+    "azure-identity",
 ]
 
 [project.scripts]
@@ -26,4 +33,4 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
