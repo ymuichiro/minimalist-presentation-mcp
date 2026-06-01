@@ -69,30 +69,64 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }}
     * {{ box-sizing: border-box; }}
+    html, body {{ width: 100%; overflow-x: hidden; }}
     body {{ margin: 0; background: #ece9e3; color: var(--ink); }}
-    .app-shell {{ min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }}
+    .app-shell {{
+      height: 100dvh; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr);
+      width: 100%; max-width: 100vw; overflow-x: hidden; --notes-height: 180px;
+    }}
+    body.notes-visible .app-shell {{ grid-template-rows: auto minmax(0, 1fr) var(--notes-height); }}
     .toolbar {{
       display: flex; align-items: center; gap: 12px; padding: 10px 16px;
       background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid var(--line);
-      position: sticky; top: 0; z-index: 5;
+      position: sticky; top: 0; z-index: 5; width: 100%; max-width: 100vw;
     }}
     .deck-title {{
       min-width: 0; flex: 1; display: flex; align-items: baseline; gap: 10px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }}
-    .deck-title strong, .deck-title span {{ overflow: hidden; text-overflow: ellipsis; }}
+    .deck-title strong, .deck-title span {{ min-width: 0; overflow: hidden; text-overflow: ellipsis; }}
     .deck-title span {{ color: var(--muted); font-size: 13px; }}
-    .nav-buttons {{ display: flex; gap: 6px; align-items: center; }}
+    .nav-buttons {{ display: flex; gap: 6px; align-items: center; flex-shrink: 0; }}
     button {{
       border: 1px solid var(--line); background: var(--panel); color: var(--ink);
       height: 34px; min-width: 34px; border-radius: 6px; padding: 0 11px;
       cursor: pointer; font: inherit; font-size: 13px;
     }}
     button[aria-pressed="true"] {{ border-color: var(--accent); color: var(--accent); }}
-    .stage {{ display: grid; place-items: center; padding: 20px; }}
-    .deck {{ width: min(1280px, calc(100vw - 40px)); aspect-ratio: 16 / 9; position: relative; }}
+    .stage {{
+      min-height: 0; display: grid; place-items: center; padding: 16px;
+      overflow: auto;
+    }}
+    .deck {{
+      width: min(1280px, calc(100vw - 32px), calc((100dvh - 86px) * 16 / 9));
+      aspect-ratio: 16 / 9; position: relative;
+    }}
+    body.notes-visible .deck {{
+      width: min(1280px, calc(100vw - 32px), calc((100dvh - 86px - var(--notes-height)) * 16 / 9));
+    }}
+    .app-shell:fullscreen {{ background: #111; }}
+    .app-shell:fullscreen .toolbar {{
+      position: fixed; left: 0; right: 0; top: 0; z-index: 30;
+      background: rgba(17, 17, 17, 0.72); color: #fff; border-bottom-color: rgba(255, 255, 255, 0.18);
+    }}
+    .app-shell:fullscreen .deck-title span,
+    .app-shell:fullscreen .page-indicator {{ color: rgba(255, 255, 255, 0.72); }}
+    .app-shell:fullscreen button {{
+      background: rgba(255, 255, 255, 0.12); color: #fff; border-color: rgba(255, 255, 255, 0.28);
+    }}
+    .app-shell:fullscreen button[aria-pressed="true"] {{ border-color: #ff5b50; color: #ffb3ad; }}
+    .app-shell:fullscreen .stage {{ min-height: 0; padding: 58px 0 0; background: #111; }}
+    .app-shell:fullscreen .deck {{
+      width: min(100vw, calc((100vh - 58px) * 16 / 9));
+      height: min(calc(100vh - 58px), calc(100vw * 9 / 16));
+    }}
+    body.notes-visible .app-shell:fullscreen .deck {{
+      width: min(100vw, calc((100vh - 58px - var(--notes-height)) * 16 / 9));
+      height: min(calc(100vh - 58px - var(--notes-height)), calc(100vw * 9 / 16));
+    }}
     .slide {{
-      display: none; width: 100%; height: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+      display: none; width: 100%; height: 100%; aspect-ratio: 16 / 9; overflow: auto;
       background: var(--paper); border: 1px solid #d6d0c7;
       box-shadow: 0 18px 42px rgba(0, 0, 0, 0.14); position: relative;
     }}
@@ -127,7 +161,7 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
     .evidence-header .watch {{ margin: 0; font-size: clamp(15px, 1.35vw, 20px); }}
     .evidence-header h1 {{ font-size: clamp(25px, 2.8vw, 42px); line-height: 1.2; }}
     .capsule-frame {{
-      min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden;
+      min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start; overflow: auto;
       background: var(--panel); border: 1px solid var(--line);
     }}
     .capsule-frame :where([data-chart]) {{
@@ -178,12 +212,44 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
       font-size: 13px; line-height: 1.4; white-space: pre-line; pointer-events: none;
     }}
     .deck-tooltip.visible {{ display: block; }}
-    .speaker-note {{
-      display: none; position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
-      padding: 14px 18px; background: rgba(22, 22, 22, 0.9); color: #fff;
-      font-size: 16px; line-height: 1.45; max-height: 28%; overflow: auto;
+    .laser-pointer {{
+      position: fixed; left: 0; top: 0; z-index: 40; display: none;
+      width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.88);
+      background: rgba(226, 42, 28, 0.72); box-shadow: 0 0 0 9px rgba(226, 42, 28, 0.2), 0 0 24px rgba(226, 42, 28, 0.88);
+      pointer-events: none;
     }}
-    body.notes-visible .speaker-note {{ display: block; }}
+    body.pointer-enabled .laser-pointer.visible {{ display: block; }}
+    .speaker-note {{
+      display: none;
+    }}
+    .notes-panel {{
+      display: none; min-height: 96px; max-height: min(50vh, 420px);
+      background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }}
+    body.notes-visible .notes-panel {{ display: grid; grid-template-rows: 10px minmax(0, 1fr); }}
+    .notes-resizer {{
+      cursor: ns-resize; background: linear-gradient(to bottom, #e7e2d9, #f8f6f0);
+      border-bottom: 1px solid var(--line);
+    }}
+    .notes-resizer::before {{
+      content: ""; display: block; width: 54px; height: 3px; margin: 3px auto 0;
+      border-radius: 999px; background: #b8b1a6;
+    }}
+    .notes-content {{
+      padding: 16px 22px; overflow: auto; color: var(--ink);
+      font-size: 16px; line-height: 1.55; white-space: pre-wrap;
+    }}
+    .notes-empty {{ color: var(--muted); }}
+    .app-shell:fullscreen .notes-panel {{
+      background: #171717; color: #f4f4f4; border-top-color: rgba(255, 255, 255, 0.18);
+    }}
+    .app-shell:fullscreen .notes-resizer {{
+      background: linear-gradient(to bottom, #252525, #1a1a1a); border-bottom-color: rgba(255, 255, 255, 0.16);
+    }}
+    .app-shell:fullscreen .notes-resizer::before {{ background: rgba(255, 255, 255, 0.42); }}
+    .app-shell:fullscreen .notes-content {{ color: #f4f4f4; }}
     .page-indicator {{ color: var(--muted); font-size: 13px; min-width: 52px; text-align: center; }}
     @page {{ size: 16in 9in; margin: 0; }}
     @media print {{
@@ -196,7 +262,7 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
         page-break-after: always; break-after: page;
       }}
       .evidence-slide, .evidence-slide.active {{ display: flex; }}
-      .speaker-note, body.notes-visible .speaker-note {{ display: none; }}
+      .speaker-note, .notes-panel, body.notes-visible .notes-panel {{ display: none; }}
     }}
   </style>
 </head>
@@ -213,22 +279,39 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
         <span class="page-indicator" data-page-indicator>1 / 5</span>
         <button type="button" data-next aria-label="Next slide">→</button>
         <button type="button" data-notes aria-pressed="false">Notes</button>
+        <button type="button" data-pointer aria-pressed="false">Pointer</button>
+        <button type="button" data-fullscreen aria-pressed="false">Fullscreen</button>
         <button type="button" data-print>PDF</button>
       </div>
     </header>
     <main class="stage">
       <article class="deck" aria-label="Message-First Deck">{slides}</article>
     </main>
+    <aside class="notes-panel" aria-label="Speaker notes">
+      <div class="notes-resizer" data-notes-resizer aria-hidden="true"></div>
+      <div class="notes-content" data-notes-content></div>
+    </aside>
   </div>
   <script>
     (() => {{
       const slides = Array.from(document.querySelectorAll(".slide"));
+      const shell = document.querySelector(".app-shell");
+      const deck = document.querySelector(".deck");
       const indicator = document.querySelector("[data-page-indicator]");
       const notesButton = document.querySelector("[data-notes]");
+      const notesPanel = document.querySelector(".notes-panel");
+      const notesContent = document.querySelector("[data-notes-content]");
+      const notesResizer = document.querySelector("[data-notes-resizer]");
+      const pointerButton = document.querySelector("[data-pointer]");
+      const fullscreenButton = document.querySelector("[data-fullscreen]");
       const tooltip = document.createElement("div");
       tooltip.className = "deck-tooltip";
       tooltip.setAttribute("aria-hidden", "true");
       document.body.appendChild(tooltip);
+      const laserPointer = document.createElement("div");
+      laserPointer.className = "laser-pointer";
+      laserPointer.setAttribute("aria-hidden", "true");
+      document.body.appendChild(laserPointer);
       let index = 0;
 
       function readText(node) {{
@@ -281,16 +364,92 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
         tooltip.setAttribute("aria-hidden", "true");
       }}
 
+      function isFullscreen() {{
+        return document.fullscreenElement === shell;
+      }}
+
+      async function enterFullscreen() {{
+        if (!shell.requestFullscreen || isFullscreen()) return;
+        await shell.requestFullscreen();
+      }}
+
+      async function exitFullscreen() {{
+        if (!document.exitFullscreen || !document.fullscreenElement) return;
+        await document.exitFullscreen();
+      }}
+
+      function syncFullscreenButton() {{
+        const active = isFullscreen();
+        fullscreenButton.setAttribute("aria-pressed", active ? "true" : "false");
+        fullscreenButton.textContent = active ? "Exit" : "Fullscreen";
+      }}
+
+      function showLaserPointer(event) {{
+        if (!document.body.classList.contains("pointer-enabled")) return;
+        if (!deck.contains(event.target)) {{
+          laserPointer.classList.remove("visible");
+          return;
+        }}
+        laserPointer.style.left = `${{event.clientX}}px`;
+        laserPointer.style.top = `${{event.clientY}}px`;
+        laserPointer.classList.add("visible");
+      }}
+
+      function hideLaserPointer() {{
+        laserPointer.classList.remove("visible");
+      }}
+
+      function updateNotes() {{
+        const activeNote = slides[index].querySelector(".speaker-note");
+        const text = activeNote ? activeNote.textContent.trim() : "";
+        notesContent.textContent = text || "No speaker notes for this slide.";
+        notesContent.classList.toggle("notes-empty", !text);
+      }}
+
+      function clampNotesHeight(height) {{
+        const maxHeight = Math.min(420, window.innerHeight * 0.5);
+        return Math.max(96, Math.min(maxHeight, height));
+      }}
+
       function show(nextIndex) {{
         index = Math.max(0, Math.min(slides.length - 1, nextIndex));
         slides.forEach((slide, slideIndex) => slide.classList.toggle("active", slideIndex === index));
         indicator.textContent = `${{index + 1}} / ${{slides.length}}`;
+        updateNotes();
       }}
       document.querySelector("[data-prev]").addEventListener("click", () => show(index - 1));
       document.querySelector("[data-next]").addEventListener("click", () => show(index + 1));
       notesButton.addEventListener("click", () => {{
         const visible = document.body.classList.toggle("notes-visible");
         notesButton.setAttribute("aria-pressed", visible ? "true" : "false");
+      }});
+      notesResizer.addEventListener("pointerdown", (event) => {{
+        event.preventDefault();
+        notesResizer.setPointerCapture(event.pointerId);
+        const startY = event.clientY;
+        const startHeight = notesPanel.getBoundingClientRect().height;
+        function drag(moveEvent) {{
+          const nextHeight = clampNotesHeight(startHeight + startY - moveEvent.clientY);
+          shell.style.setProperty("--notes-height", `${{nextHeight}}px`);
+        }}
+        function stop(upEvent) {{
+          notesResizer.releasePointerCapture(upEvent.pointerId);
+          window.removeEventListener("pointermove", drag);
+          window.removeEventListener("pointerup", stop);
+          window.removeEventListener("pointercancel", stop);
+        }}
+        window.addEventListener("pointermove", drag);
+        window.addEventListener("pointerup", stop);
+        window.addEventListener("pointercancel", stop);
+      }});
+      pointerButton.addEventListener("click", () => {{
+        const active = document.body.classList.toggle("pointer-enabled");
+        pointerButton.setAttribute("aria-pressed", active ? "true" : "false");
+        if (!active) hideLaserPointer();
+      }});
+      fullscreenButton.addEventListener("click", () => {{
+        if (isFullscreen()) exitFullscreen();
+        else enterFullscreen();
       }});
       document.addEventListener("pointerover", (event) => {{
         const target = getTooltipTarget(event.target);
@@ -305,12 +464,16 @@ def render_deck_html(deck_id: str, deck: DeckIR) -> str:
         }}
         showTooltip(target, event);
       }});
+      document.addEventListener("pointermove", showLaserPointer);
+      deck.addEventListener("pointerleave", hideLaserPointer);
       document.addEventListener("pointerdown", hideTooltip);
       document.addEventListener("scroll", hideTooltip, true);
+      document.addEventListener("fullscreenchange", syncFullscreenButton);
       document.querySelector("[data-print]").addEventListener("click", () => window.print());
       window.addEventListener("keydown", (event) => {{
         if (event.key === "ArrowLeft") show(index - 1);
         if (event.key === "ArrowRight") show(index + 1);
+        if (event.key === "Escape" && isFullscreen()) exitFullscreen();
         if (event.key.toLowerCase() === "n" && !event.metaKey && !event.ctrlKey && !event.altKey) notesButton.click();
       }});
       show(0);

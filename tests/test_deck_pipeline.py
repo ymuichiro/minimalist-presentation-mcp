@@ -116,6 +116,13 @@ def test_render_escapes_message_text_and_inserts_capsule() -> None:
     assert html.count('class="slide ') == 5
     assert "window.print()" in html
     assert "@media print" in html
+    assert "requestFullscreen" in html
+    assert "exitFullscreen" in html
+    assert 'data-fullscreen' in html
+    assert 'data-pointer' in html
+    assert 'class="notes-panel"' in html
+    assert 'data-notes-resizer' in html
+    assert "updateNotes()" in html
 
 
 def test_render_exposes_evidence_takeaway_and_top_wrapper() -> None:
@@ -128,8 +135,12 @@ def test_render_exposes_evidence_takeaway_and_top_wrapper() -> None:
     assert "flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start;" in html
     assert "display: block; margin: 0; padding: 10px 14px;" in html
     assert ".deck-tooltip" in html
+    assert ".laser-pointer" in html
+    assert ".notes-panel" in html
+    assert ".notes-resizer" in html
     assert "[data-chart-label]" in html
     assert 'document.addEventListener("pointerover"' in html
+    assert 'document.addEventListener("fullscreenchange"' in html
 
 
 def test_render_keeps_chart_tooltip_metadata_in_capsules() -> None:

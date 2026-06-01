@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Communication Compiler</title>
+  <link rel="stylesheet" href="/static/styles.css?v=claims-card-fix-1">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>Communication Compiler</h1>
+      </div>
+      <div class="language-switch" aria-label="Language">
+        <button class="ghost" type="button" data-locale="ja">JA</button>
+        <button class="ghost" type="button" data-locale="en">EN</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <div class="status-line">
+        <span id="sessionBadge">Session: preparing</span>
+        <ol class="flow" aria-label="Workflow">
+          <li data-step-nav="freeTalk" data-i18n="nav.input">入力</li>
+          <li data-step-nav="claims" data-i18n="nav.claims">主張</li>
+          <li data-step-nav="kernel" data-i18n="nav.kernel">Kernel</li>
+          <li data-step-nav="outputs" data-i18n="nav.deck">資料</li>
+        </ol>
+        <span id="globalStatus">idle</span>
+      </div>
+
+      <section class="stage active" id="stepFreeTalk" data-step-panel="freeTalk">
+        <div class="stage-heading">
+          <span>Step 1</span>
+          <h2 data-i18n="step1.title">自由入力</h2>
+          <p data-i18n="step1.description">未整理のまま入力してください。</p>
+        </div>
+        <div class="form-grid">
+          <div class="field field-wide">
+            <div class="field-header">
+              <span data-i18n="step1.freeTalkLabel">思っていることをそのまま話してください</span>
+              <div class="inline-actions">
+                <button class="ghost sample-inline" id="voiceInput" type="button" data-i18n="button.voiceInput">音声入力</button>
+                <button class="ghost sample-inline" id="demoPreset" type="button" data-i18n="button.sample">サンプル</button>
+              </div>
+            </div>
+            <textarea id="freeTalk" rows="10" data-i18n-placeholder="step1.freeTalkPlaceholder" placeholder="整理されていなくて構いません。例: AI 活用を進めたいが、今の Copilot 配布中心の進め方では成果につながっていない気がする..."></textarea>
+          </div>
+          <label class="field">
+            <span data-i18n="field.audience">聞き手</span>
+            <input id="audience" data-i18n-placeholder="field.audiencePlaceholder" placeholder="役員会">
+          </label>
+          <label class="field">
+            <span data-i18n="field.desiredAction">求める判断</span>
+            <input id="desiredAction" data-i18n-placeholder="field.desiredActionPlaceholder" placeholder="次四半期の AI 投資方針を決める">
+          </label>
+          <label class="field">
+            <span data-i18n="field.tone">トーン</span>
+            <select id="tone">
+              <option value="executive" data-i18n="tone.executive">役員向け</option>
+              <option value="direct" data-i18n="tone.direct">端的</option>
+              <option value="cautious" data-i18n="tone.cautious">慎重</option>
+              <option value="technical" data-i18n="tone.technical">技術寄り</option>
+              <option value="narrative" data-i18n="tone.narrative">ストーリー重視</option>
+            </select>
+          </label>
+        </div>
+        <div class="wizard-actions">
+          <span></span>
+          <button id="extractClaims" type="button" data-i18n="button.next">次へ</button>
+        </div>
+      </section>
+
+      <section class="stage" id="stepClaims" data-step-panel="claims">
+        <div class="stage-heading">
+          <span>Step 2</span>
+          <h2 data-i18n="step2.title">主張候補</h2>
+          <p data-i18n="step2.description">近い主張を選択してください。</p>
+        </div>
+        <div class="candidate-grid" id="claimCandidates"></div>
+        <div class="wizard-actions">
+          <button class="ghost" id="backToFreeTalk" type="button" data-i18n="button.back">戻る</button>
+          <span></span>
+        </div>
+      </section>
+
+      <section class="stage" id="stepKernel" data-step-panel="kernel">
+        <div class="stage-heading">
+          <span>Step 3</span>
+          <h2 data-i18n="step3.title">Kernel Studio</h2>
+          <p data-i18n="step3.description">4 行の核を対話で磨きます。</p>
+        </div>
+        <div class="kernel-studio">
+          <aside class="agent-panel">
+            <div class="agent-header">
+              <span>Agent</span>
+              <strong data-i18n="agent.chat">対話</strong>
+            </div>
+            <div class="agent-thread chat-thread" id="agentThread"></div>
+            <form class="chat-composer" id="kernelChatForm">
+              <textarea id="kernelFeedback" rows="3" data-i18n-placeholder="field.additionalInfoPlaceholder" placeholder="例: 4行目には、対象業務・期間・予算振替・決裁者を明記してください。"></textarea>
+              <button id="refineKernel" type="submit" data-i18n="button.send">送信</button>
+            </form>
+          </aside>
+          <div class="kernel-workbench">
+            <div class="stage-heading">
+              <span>4-Line Message Kernel</span>
+              <h2 data-i18n="step3.messageTitle">メッセージ</h2>
+            </div>
+            <div class="kernel-list" id="kernelRows"></div>
+          </div>
+        </div>
+        <div class="wizard-actions">
+          <button class="ghost" id="backToClaims" type="button" data-i18n="button.back">戻る</button>
+          <button id="generateDeck" type="button" data-i18n="button.generateDeck">資料化する</button>
+        </div>
+      </section>
+
+      <section class="stage outputs" id="stepOutputs" data-step-panel="outputs">
+        <div class="stage-heading">
+          <span>Step 4</span>
+          <h2 data-i18n="step4.title">資料出力</h2>
+          <p data-i18n="step4.description">生成された資料を確認してください。</p>
+        </div>
+        <div class="outputs-grid">
+          <div>
+          <div class="button-row">
+            <button class="ghost" id="generateBrief" type="button" data-i18n="button.brief">要約を作る</button>
+            <button class="ghost" id="copyMarkdown" type="button" data-i18n="button.copyMarkdown">Markdown をコピー</button>
+          </div>
+          <div class="output-links" id="outputLinks"></div>
+          </div>
+          <div class="final-kernel" id="finalKernel"></div>
+        </div>
+        <div class="wizard-actions">
+          <button class="ghost" id="backToKernel" type="button" data-i18n="button.back">戻る</button>
+          <a class="ghost" id="openDeckShortcut" href="#" target="_blank" rel="noreferrer" aria-disabled="true" data-i18n="button.openDeck">資料を開く</a>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js?v=claims-card-fix-1"></script>
+</body>
+</html>

@@ -30,6 +30,7 @@ def create_deck_response(
     content: Any,
     store: DeckStore,
     base_url: str,
+    owner_user_id: str | None = None,
 ) -> dict[str, Any]:
     try:
         deck = parse_deck_input(format, content)
@@ -44,7 +45,7 @@ def create_deck_response(
     safe_deck = _sanitize_evidence_html(deck)
     deck_id = store.new_deck_id()
     html = render_deck_html(deck_id, safe_deck)
-    store.save_with_id(deck_id, safe_deck, html)
+    store.save_with_id(deck_id, safe_deck, html, owner_user_id=owner_user_id)
 
     return {
         "deck_id": deck_id,

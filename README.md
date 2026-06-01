@@ -1,7 +1,37 @@
-Minimalist Presentation MCP
-===========================
+# Minimalist Presentation MCP / Communication Compiler
 
-HTTP Streamable MCP server for generating fixed five-page Message-First Deck presentations.
+This project is not a generic slide generator.
+
+It is a communication-structuring application powered by an Azure AI Foundry Agent.
+The Agent listens to rough user thoughts, extracts possible claims, compresses the selected claim into a 4-Line Message Kernel, diagnoses contradictions and evidence gaps, and then calls the Minimalist Presentation MCP server to expand the refined message into a five-page Message-First Deck.
+
+The deck is the UI.
+The real output is a sharpened business message.
+
+このプロジェクトは、単なるスライド生成ツールではありません。
+
+Azure AI Foundry Agent がユーザーの雑な発話を受け取り、言いたいことの候補を抽出し、選ばれた主張を 4-Line Message Kernel に圧縮し、矛盾・根拠不足・反論可能性を診断したうえで、Minimalist Presentation MCP を呼び出して5枚の Message-First Deck へ展開します。
+
+スライドは UI です。本当の成果物は、研ぎ澄まされたビジネスメッセージです。
+
+## Architecture
+
+The public MCP server remains a small tool boundary:
+
+- `GET/POST /mcp`: Streamable HTTP MCP endpoint
+- `get_presentation_guideline`: generation rules for Message-First Decks
+- `create_message_first_deck`: fixed five-page HTML deck renderer
+
+The contest demo app is separate under `/example`:
+
+- Free Talk intake
+- claim candidate extraction
+- 4-Line Message Kernel refinement and diagnosis
+- evidence gaps and objections
+- Idea Map
+- deck and brief output links
+
+The Azure AI Foundry Agent is the orchestrator. The MCP server is the deck-rendering tool.
 
 ## Run
 
@@ -20,6 +50,38 @@ The package also installs a console command:
 ```bash
 uv run minimalist-presentation-mcp
 ```
+
+## Run the Communication Compiler Demo
+
+Start the MCP server:
+
+```bash
+make run
+```
+
+In another terminal, start the demo app:
+
+```bash
+make run-example
+```
+
+Open:
+
+```text
+http://localhost:8080
+```
+
+Default demo settings use the deterministic mock Agent. To connect an Azure AI Foundry Agent:
+
+```bash
+uv sync --extra foundry
+AGENT_PROVIDER=foundry \
+AZURE_AI_FOUNDRY_PROJECT_ENDPOINT=https://... \
+AZURE_AI_FOUNDRY_AGENT_ID=... \
+make run-example
+```
+
+The demo app calls `MESSAGE_FIRST_MCP_ENDPOINT` for deck generation. For local contest demos, `MESSAGE_FIRST_MCP_ALLOW_LOCAL_FALLBACK=true` keeps the demo usable if the MCP server is temporarily unavailable.
 
 ## Cloudflare Named Tunnel
 
@@ -93,6 +155,36 @@ or:
 ```
 
 Generated decks are persisted under `data/decks/`.
+
+## Authentication
+
+Set these values before exposing the app as an authenticated ChatGPT MCP server:
+
+```dotenv
+AUTH_ENABLED=true
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=replace-with-a-long-random-password
+PUBLIC_BASE_URL=https://zen-presentation.notelligent.app
+ALLOWED_HOSTS=127.0.0.1,localhost,app.internal,zen-presentation.notelligent.app
+ALLOWED_REDIRECT_ORIGINS=https://chat.openai.com,https://chatgpt.com
+```
+
+The app exposes OAuth-compatible endpoints for ChatGPT remote MCP connections:
+
+- `/.well-known/oauth-protected-resource`
+- `/.well-known/oauth-protected-resource/mcp`
+- `/.well-known/oauth-authorization-server`
+- `/register`
+- `/authorize`
+- `/token`
+- `/revoke`
+- `/mcp`
+
+The login provider is local username/password. Browser pages under `/dashboard`,
+`/mypage`, and `/decks/{deck_id}` require a valid app session when auth is
+enabled. Decks created through authenticated MCP calls are owned by the logged-in
+user and are not visible to other users. Dynamic OAuth client registration only
+accepts redirect URI origins listed in `ALLOWED_REDIRECT_ORIGINS`.
 
 ## Evidence slide contract
 

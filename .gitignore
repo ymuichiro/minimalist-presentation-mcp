@@ -125,6 +125,10 @@ celerybeat.pid
 
 # Environments
 .env
+.env.live
+.env.local
+.env.*.local
+.azure-deploy/
 .venv
 env/
 venv/

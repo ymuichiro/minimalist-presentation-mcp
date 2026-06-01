@@ -2,12 +2,15 @@ HOST ?= 127.0.0.1
 PORT ?= 3000
 COMPOSE := docker compose
 
-.PHONY: help sync run test init-env up up-tunnel down restart ps logs logs-app logs-tunnel clean
+.PHONY: help sync run run-example run-demo validate-live-env test init-env up up-tunnel down restart ps logs logs-app logs-tunnel clean
 
 help:
 	@echo "Available targets:"
 	@echo "  make sync          Install dependencies with uv"
 	@echo "  make run           Start the server directly on $(HOST):$(PORT)"
+	@echo "  make run-example   Start the Communication Compiler demo app on 127.0.0.1:8080"
+	@echo "  make run-demo      Start MCP on 3000 and print the example command"
+	@echo "  make validate-live-env  Validate .env.live without calling Azure"
 	@echo "  make test          Run test suite"
 	@echo "  make init-env      Create .env from .env.example if missing"
 	@echo "  make up            Start local container stack on 127.0.0.1:\$${APP_PORT:-13000}"
@@ -25,6 +28,16 @@ sync:
 
 run:
 	MESSAGE_FIRST_DECK_HOST=$(HOST) MESSAGE_FIRST_DECK_PORT=$(PORT) uv run minimalist-presentation-mcp
+
+run-example:
+	APP_BASE_URL=http://localhost:8080 uv run uvicorn example.communication_compiler.main:app --host 127.0.0.1 --port 8080 --reload
+
+run-demo:
+	@echo "Terminal 1: make run"
+	@echo "Terminal 2: make run-example"
+
+validate-live-env:
+	uv run --extra foundry python -m example.communication_compiler.tools.validate_live_env .env.live
 
 test:
 	uv run pytest
